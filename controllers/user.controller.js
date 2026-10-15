@@ -1,10 +1,11 @@
 import { UserModel } from "../models/users.model.js";
 import bcrypt from "bcrypt"
-import { generateToken } from "../utils/generateToken.js";
+import { generateRefreshToken, generateToken, hashToken } from "../utils/generateToken.js";
 import crypto from "crypto";
 import { sendPasswordResetEmail } from "../utils/sendEmail.js";
 import path from "path";
 import { supabase } from "../config/supabase.js";
+import jwt from "jsonwebtoken";
 
 //=============================================
 // REGISTER A USER ACCOUNT
@@ -312,6 +313,100 @@ async function uploadProfileImage(req,res,next){
 }
 
 
+//=============================================
+// REFRESH ACCESS TOKEN 
+//=============================================
+async function refreshAccessToken(req,res,next){
+
+    try {
+        
+        // token lena hai user se refresh token
+        const {refreshToken} = req.body;
+
+
+        // check karo token aya hai bhi ya nhi
+        if(!refreshToken){
+            res.status(401);
+            throw new Error("Refresh token is required")
+        }
+
+        // agar hai refresh token phir?
+        let decoded;
+        try {
+            decoded = jwt.verify(refreshToken, process.env.REFRESH_SECRET_KEY);
+        } catch (error) {
+            res.status(401);
+            throw new Error("Invalid or expired refresh token");
+        }
+
+
+        const userRecord = await UserModel.findById(decoded.id);
+
+        if(!userRecord){
+            res.status(401);
+            throw new Error("User no longer exist");
+        }
+
+        const newRefreshToken =  generateRefreshToken(userRecord._id);
+        const hashedRefreshToken = hashToken(newRefreshToken); // ye new refresh access toen hai
+
+
+        const matchedUser = await UserModel.findOneAndUpdate(
+            {_id: userRecord._id,  refreshToken: hashToken(refreshToken)}, // ye filter hai 
+            {refreshToken: hashedRefreshToken}
+        )
+
+        if(!matchedUser){
+            await UserModel.updateOne( {_id: userRecord._id} ,  {refreshToken: null} )
+            res.status("401");
+            throw new Error("Something went wrong, Please login again");
+        }
+
+
+        // naya access token banaow
+        const token =  generateToken( userRecord._id, userRecord.name, userRecord.email, userRecord.role  );        
+
+        // response bhejo
+        res.status(200).json({
+            success: true,
+            token,
+            refreshToken: newRefreshToken
+        })
+
+
+
+
+    } catch (error) {
+        next(error)
+    }
+
+}
+
+
+
+//=============================================
+// LOGOUT (refresh token ko delete kar dengy)
+//=============================================
+async function logout(req,res,next){
+    try {
+        
+        const {refreshToken} = req.body;
+
+        if(refreshToken){
+            await UserModel.updateOne(  { refreshToken: hashToken(refreshToken) } ,  { refreshToken: null } )
+        }
+
+        res.status(200).json({
+            success: true,
+            message: "Logout success!"
+        })
+
+    } catch (error) {
+        next(error)
+    }
+}
+
+
 
 
 export default{
@@ -320,5 +415,7 @@ export default{
     getMyProfile,
     forgotPassword,
     resetPassword,
-    uploadProfileImage
+    uploadProfileImage,
+    refreshAccessToken,
+    logout
 }

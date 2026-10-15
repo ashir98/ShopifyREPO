@@ -11,6 +11,13 @@ userRouter.route("/api/register")
 userRouter.route("/api/login")
 .post(userController.loginUser)
 
+userRouter.route("/api/logout")
+.post(userController.logout)
+
+
+userRouter.route("/api/refresh")
+.post(userController.refreshAccessToken)
+
 
 userRouter.route("/api/forgot-password")
 .post(userController.forgotPassword);
