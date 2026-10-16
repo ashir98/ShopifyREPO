@@ -3,13 +3,13 @@ const userRouter = express.Router();
 import userController from "../controllers/user.controller.js";
 import { protect } from "../middlewares/auth_middleware.js";
 import { upload } from "../config/multer.js";
-
+import { loginLimiter } from "../middlewares/rate-limiter.js";
 
 userRouter.route("/api/register")
 .post(userController.registerUser)
 
 userRouter.route("/api/login")
-.post(userController.loginUser)
+.post( loginLimiter  , userController.loginUser)
 
 userRouter.route("/api/logout")
 .post(userController.logout)

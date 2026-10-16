@@ -11,12 +11,9 @@ import jwt from "jsonwebtoken";
 // REGISTER A USER ACCOUNT
 //=============================================
 async function registerUser(req, res, next) {
-
     try {
-
         // get all the data from the user
         const { name, email, password } = req.body;
-
 
         // check if all the fields are provided?
         if (!name || !email || !password) {
@@ -98,15 +95,28 @@ async function loginUser(req, res, next) {
         else{
            
            // token generate hogaya
-           const token = generateToken(userAccount._id, userAccount.name, userAccount.email, userAccount.role);
 
            const isPasswordCorrect = await bcrypt.compare(password , userAccount.password ) 
 
            if(isPasswordCorrect){
+              const token = generateToken(userAccount._id, userAccount.name, userAccount.email, userAccount.role);
+              const refreshToken = generateRefreshToken(userAccount._id);
+              const refreshTokenHash = hashToken(refreshToken);
+
+
+              await UserModel.updateOne(
+                {_id: userAccount._id}, // filter
+                // updated data
+                {refreshToken: refreshTokenHash}
+              )
+
+
+
               res.status(200).json({
                 success: true,
                 message: "User Logged in Successfully!",
-                token
+                token,
+                refreshToken
               });
               
            }else{
@@ -264,6 +274,9 @@ async function resetPassword(req,res,next){
     }
 }
 
+
+
+
 //=============================================
 // UPLOAD USER PROFILE IMAGE
 //=============================================
@@ -358,7 +371,7 @@ async function refreshAccessToken(req,res,next){
 
         if(!matchedUser){
             await UserModel.updateOne( {_id: userRecord._id} ,  {refreshToken: null} )
-            res.status("401");
+            res.status(401);
             throw new Error("Something went wrong, Please login again");
         }
 
