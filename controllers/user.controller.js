@@ -2,7 +2,7 @@ import { UserModel } from "../models/users.model.js";
 import bcrypt from "bcrypt"
 import { generateRefreshToken, generateToken, hashToken } from "../utils/generateToken.js";
 import crypto from "crypto";
-import { sendPasswordResetEmail } from "../utils/sendEmail.js";
+import { sendOTPMail, sendPasswordResetEmail } from "../utils/sendEmail.js";
 import path from "path";
 import { supabase } from "../config/supabase.js";
 import jwt from "jsonwebtoken";
@@ -99,25 +99,31 @@ async function loginUser(req, res, next) {
            const isPasswordCorrect = await bcrypt.compare(password , userAccount.password ) 
 
            if(isPasswordCorrect){
-              const token = generateToken(userAccount._id, userAccount.name, userAccount.email, userAccount.role);
-              const refreshToken = generateRefreshToken(userAccount._id);
-              const refreshTokenHash = hashToken(refreshToken);
+             
+              const otp = Math.floor(100000 + Math.random() * 900000);
+              const otpExpires = Date.now() + (5*60*1000);
 
+            await  UserModel.updateOne(
+                {_id:  userAccount._id},
+                {otp, otpExpires}
+            )
 
-              await UserModel.updateOne(
-                {_id: userAccount._id}, // filter
-                // updated data
-                {refreshToken: refreshTokenHash}
-              )
+            try {
+                await sendOTPMail(userAccount.email, otp);
+            } catch (error) {
+                await UserModel.updateOne(
+                    {_id: userAccount._id},
+                    {otp: null, otpExpires: null}
+                )
+                res.status(500);
+                throw new Error("Unable to send OTP at the moment, Please try again")
+            }
 
-
-
-              res.status(200).json({
+            res.status(200).json({
                 success: true,
-                message: "User Logged in Successfully!",
-                token,
-                refreshToken
-              });
+                message: "OTP is sent to your email. Please check"
+            })
+
               
            }else{
               res.status(400);
@@ -421,6 +427,65 @@ async function logout(req,res,next){
 
 
 
+//=============================================
+// VERIFY OTP
+//=============================================
+async function verifyOTP (req,res,next){
+
+    try {
+
+        const {email,otp } = req.body
+
+        if(!email || !otp){
+            res.status(400);
+            throw new Error("Please provide email and OTP")
+        }
+
+
+        const userRecord = await UserModel.findOne({email}).select("+otp +otpExpires")
+        
+
+
+        if(!userRecord){
+            res.status(400);
+            throw new Error("Email not registered")
+        }
+
+
+        if(!userRecord.otp || userRecord.otp !== otp){
+            res.status(400);
+            throw new Error("Incorrect OTP")
+        }
+
+
+        if(!userRecord.otpExpires  || userRecord.otpExpires < Date.now()){
+            throw new Error("OTP Expired, Please login again")
+        }
+
+
+        const token = generateToken(userRecord._id, userRecord.name, userRecord.email, userRecord.role);
+        const refreshToken = generateRefreshToken(userRecord._id);
+        
+        userRecord.refreshTokenHash = hashToken(refreshToken);
+
+        userRecord.otp = null;
+        userRecord.otpExpires = null;
+
+        await userRecord.save();
+
+
+        res.status(200).json({
+            success: true,
+            message: "OTP Verified, Logged in successfully",
+            token,
+            refreshToken
+        })
+
+    } catch (error) {
+        next(error)
+    }
+}
+
 
 export default{
     registerUser,
@@ -430,5 +495,6 @@ export default{
     resetPassword,
     uploadProfileImage,
     refreshAccessToken,
-    logout
+    logout,
+    verifyOTP
 }

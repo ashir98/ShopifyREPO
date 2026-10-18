@@ -11,6 +11,9 @@ userRouter.route("/api/register")
 userRouter.route("/api/login")
 .post( loginLimiter  , userController.loginUser)
 
+userRouter.route("/api/verify-otp")
+.post( loginLimiter  , userController.verifyOTP)
+
 userRouter.route("/api/logout")
 .post(userController.logout)
 
