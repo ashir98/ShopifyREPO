@@ -2,3 +2,7 @@ node_modules/
 .env
 brute_force/rockyou.txt
 *.zip
+2FA_Code_Snippets.pdf
+2FA_Flow_Diagram.pdf
+JWT_Flow_Diagram.pdf
+Payment_Flow_Simple_Diagram.pdf
