@@ -28,7 +28,12 @@ export async function protect(req,res,next){
 
         const decryptedToken = jwt.verify(token , process.env.SECRET_KEY );
 
-        const userInfo = await UserModel.findById(decryptedToken.id);
+        const userInfo = await UserModel.findById(decryptedToken.id).select('-password -resetToken -resetTokenExpires');
+
+        if (!userInfo) {
+            res.status(401);
+            throw new Error('User account not found');
+        }
 
         req.user = userInfo;
 

@@ -466,7 +466,7 @@ async function verifyOTP (req,res,next){
         const token = generateToken(userRecord._id, userRecord.name, userRecord.email, userRecord.role);
         const refreshToken = generateRefreshToken(userRecord._id);
         
-        userRecord.refreshTokenHash = hashToken(refreshToken);
+        userRecord.refreshToken = hashToken(refreshToken);
 
         userRecord.otp = null;
         userRecord.otpExpires = null;
