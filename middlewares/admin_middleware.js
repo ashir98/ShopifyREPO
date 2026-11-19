@@ -31,7 +31,7 @@ export async function adminProtect(req,res,next){
         }
 
         if (userInfo.role !== "admin") {
-            res.status(401);
+            res.status(403); // forbidden
             throw new Error("Access denied. only admin can access");
         }
         else{
