@@ -5,6 +5,7 @@ import { errorHandler } from "./middlewares/error_handler.js";
 import productRouter from "./routes/products.routes.js";
 import userRouter from "./routes/users.routes.js";
 import { connectDatabase } from "./config/db_config.js";
+import orderRouter from "./routes/orders.routes.js";
 const app = express();
 app.use(cors());
 app.use(express.json());
@@ -19,6 +20,7 @@ app.use(async (req, res, next) => {
 });
 app.use(userRouter);
 app.use(productRouter);
+app.use(orderRouter);
 app.use(errorHandler);
 
 // Sirf local development me listen karo
